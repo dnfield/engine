@@ -16,9 +16,9 @@
 
 #include "flutter/fml/make_copyable.h"
 #include "flutter/fml/message_loop.h"
-#include "flutter/runtime/dart_service_isolate.h"
 #include "flutter/shell/common/rasterizer.h"
 #include "flutter/shell/platform/android/platform_view_android.h"
+#include "flutter/shell/platform/android/platform_view_android_jni.h"
 
 namespace shell {
 
@@ -138,12 +138,12 @@ AndroidShellHolder::AndroidShellHolder(
 #if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
     FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
     callback_handle_ = blink::DartServiceIsolate::AddServerStatusCallback(
-        [weak = _weakFactory->GetWeakPtr(),
+        [weak = weak_factory_.GetWeakPtr(),
          runner = fml::MessageLoop::GetCurrent().GetTaskRunner()](
             const std::string& uri) {
           runner->PostTask([weak, uri]() {
             if (weak) {
-              weak->PublishServiceProtocolPort : std::move(uri);
+              weak->PublishServiceProtocolPort(std::move(uri));
             }
           });
         });
@@ -155,7 +155,7 @@ AndroidShellHolder::~AndroidShellHolder() {
 #if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
     FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
   blink::DartServiceIsolate::RemoveServerStatusCallback(
-      std::move(_callbackHandle));
+      std::move(callback_handle_));
 #endif
   shell_.reset();
   thread_host_.Reset();
@@ -169,7 +169,12 @@ void AndroidShellHolder::PublishServiceProtocolPort(const std::string& uri) {
   auto colonPosition = uri.find_last_of(":");
   auto portSubstring = uri.substr(colonPosition + 1);
   auto port = std::stoi(portSubstring);
-
+  auto env = fml::jni::AttachCurrentThread();
+  auto java_object = java_object_.get(env);
+  if (java_object.is_null()) {
+    return;
+  }
+  FlutterPublishObservatoryPort(env, java_object.obj(), port);
 }
 
 void AndroidShellHolder::ThreadDestructCallback(void* value) {

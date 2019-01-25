@@ -224,7 +224,7 @@ public class FlutterJNI {
 
   // Called by native when the observatory port is available.
   @SuppressWarnings("unused")
-  private void publishObservatoryReport(int port) {
+  private void publishObservatoryPort(int port) {
     if (nsdManager != null) {
       NsdServiceInfo serviceInfo = new NsdServiceInfo();
       serviceInfo.setServiceName(packageName);

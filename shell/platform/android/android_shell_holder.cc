@@ -16,6 +16,7 @@
 
 #include "flutter/fml/make_copyable.h"
 #include "flutter/fml/message_loop.h"
+#include "flutter/runtime/dart_service_isolate.h"
 #include "flutter/shell/common/rasterizer.h"
 #include "flutter/shell/platform/android/platform_view_android.h"
 
@@ -25,7 +26,9 @@ AndroidShellHolder::AndroidShellHolder(
     blink::Settings settings,
     fml::jni::JavaObjectWeakGlobalRef java_object,
     bool is_background_view)
-    : settings_(std::move(settings)), java_object_(java_object) {
+    : settings_(std::move(settings)),
+      java_object_(java_object),
+      weak_factory_(this) {
   static size_t shell_count = 1;
   auto thread_label = std::to_string(shell_count++);
 
@@ -131,13 +134,42 @@ AndroidShellHolder::AndroidShellHolder(
         FML_LOG(ERROR) << "Failed to set UI task runner priority";
       }
     });
+
+#if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
+    FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
+    callback_handle_ = blink::DartServiceIsolate::AddServerStatusCallback(
+        [weak = _weakFactory->GetWeakPtr(),
+         runner = fml::MessageLoop::GetCurrent().GetTaskRunner()](
+            const std::string& uri) {
+          runner->PostTask([weak, uri]() {
+            if (weak) {
+              weak->PublishServiceProtocolPort : std::move(uri);
+            }
+          });
+        });
+#endif
   }
 }
 
 AndroidShellHolder::~AndroidShellHolder() {
+#if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
+    FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
+  blink::DartServiceIsolate::RemoveServerStatusCallback(
+      std::move(_callbackHandle));
+#endif
   shell_.reset();
   thread_host_.Reset();
   FML_CHECK(pthread_key_delete(thread_destruct_key_) == 0);
+}
+
+void AndroidShellHolder::PublishServiceProtocolPort(const std::string& uri) {
+  // uri comes in as something like 'http://127.0.0.1:XXXXX/' where XXXXX is the
+  // port number.
+  // It's cheaper to marshal the int over to JNI than to parse it over there.
+  auto colonPosition = uri.find_last_of(":");
+  auto portSubstring = uri.substr(colonPosition + 1);
+  auto port = std::stoi(portSubstring);
+
 }
 
 void AndroidShellHolder::ThreadDestructCallback(void* value) {

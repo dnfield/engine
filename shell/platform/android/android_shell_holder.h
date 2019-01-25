@@ -52,8 +52,12 @@ class AndroidShellHolder {
   std::unique_ptr<Shell> shell_;
   bool is_valid_ = false;
   pthread_key_t thread_destruct_key_;
+  blink::DartServiceIsolate::CallbackHandle callback_handle_;
+  fml::WeakPtrFactory<AndroidShellHolder> weak_factory_;
 
   static void ThreadDestructCallback(void* value);
+
+  void PublishServiceProtocolPort(const std::string& uri);
 
   FML_DISALLOW_COPY_AND_ASSIGN(AndroidShellHolder);
 };

@@ -7,6 +7,8 @@ package io.flutter.embedding.engine;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
+import android.net.nsd.NsdManager;
+import android.net.nsd.NsdServiceInfo;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
@@ -92,12 +94,19 @@ public class FlutterJNI {
 
   @UiThread
   public static native String nativeGetObservatoryUri();
-  
+
   private Long nativePlatformViewId;
   private FlutterRenderer.RenderSurface renderSurface;
   private PlatformMessageHandler platformMessageHandler;
   private final Set<EngineLifecycleListener> engineLifecycleListeners = new HashSet<>();
   private final Set<OnFirstFrameRenderedListener> firstFrameListeners = new HashSet<>();
+  private final NsdManager nsdManager;
+  private final String packageName;
+
+  public FlutterJNI(NsdManager nsdManager, String packageName) {
+    this.nsdManager = nsdManager;
+    this.packageName = packageName;
+  }
 
   /**
    * Sets the {@link FlutterRenderer.RenderSurface} delegate for the attached Flutter context.
@@ -211,6 +220,35 @@ public class FlutterJNI {
       platformMessageHandler.handlePlatformMessageResponse(replyId, reply);
     }
     // TODO(mattcarroll): log dropped messages when in debug mode (https://github.com/flutter/flutter/issues/25391)
+  }
+
+  // Called by native when the observatory port is available.
+  @SuppressWarnings("unused")
+  private void publishObservatoryReport(int port) {
+    if (nsdManager != null) {
+      NsdServiceInfo serviceInfo = new NsdServiceInfo();
+      serviceInfo.setServiceName(packageName);
+      serviceInfo.setServiceType("_dartobservatory._tcp");
+      serviceInfo.setPort(port);
+      nsdManager.registerService(
+        serviceInfo, NsdManager.PROTOCOL_DNS_SD, new NsdManager.RegistrationListener() {
+          @Override
+          public void onServiceRegistered(NsdServiceInfo serviceInfo) {
+            // TODO(dnfield): log success when not in release mode (https://github.com/flutter/flutter/issues/25391)
+          }
+
+          @Override
+          public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
+            // TODO(dnfield): log failure when not in release mode (https://github.com/flutter/flutter/issues/25391)
+          }
+
+          @Override
+          public void onServiceUnregistered(NsdServiceInfo serviceInfo) {}
+
+          @Override
+          public void onUnregistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {}
+      });
+    }
   }
 
   @UiThread

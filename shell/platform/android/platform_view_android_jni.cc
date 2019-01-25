@@ -87,6 +87,15 @@ void FlutterViewHandlePlatformMessageResponse(JNIEnv* env,
   FML_CHECK(CheckException(env));
 }
 
+static jmethodID g_publish_observatory_port_method = nullptr;
+void FlutterPublishObservatoryPort(JNIEnv* env, jobject obj, jint port) {
+#if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
+    FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
+  env->CallVoidMethod(obj, g_publish_observatory_port_method, port);
+  FML_CHECK(CheckException(env));
+#endif
+}
+
 static jmethodID g_update_semantics_method = nullptr;
 void FlutterViewUpdateSemantics(JNIEnv* env,
                                 jobject obj,
@@ -680,6 +689,13 @@ bool RegisterApi(JNIEnv* env) {
 
   if (g_handle_platform_message_response_method == nullptr) {
     FML_LOG(ERROR) << "Could not locate handlePlatformMessageResponse method";
+    return false;
+  }
+
+  g_publish_observatory_port_method = env->GetMethodID(
+      g_flutter_jni_class->obj(), "publishObservatoryPort", "(I)V");
+  if (g_publish_observatory_port_method == nullptr) {
+    FML_LOG(ERROR) << "Could not locate publishObservatoryPort method";
     return false;
   }
 

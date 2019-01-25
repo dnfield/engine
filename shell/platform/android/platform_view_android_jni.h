@@ -22,6 +22,8 @@ void FlutterViewHandlePlatformMessageResponse(JNIEnv* env,
                                               jint responseId,
                                               jobject response);
 
+void FlutterPublishObservatoryPort(JNIEnv* env, jobject obj, jint port);
+
 void FlutterViewUpdateSemantics(JNIEnv* env,
                                 jobject obj,
                                 jobject buffer,

@@ -14,7 +14,7 @@
 #include "third_party/tonic/logging/dart_invoke.h"
 #include "third_party/tonic/typed_data/dart_byte_data.h"
 
-namespace blink {
+namespace flutter {
 namespace {
 
 void DefaultRouteName(Dart_NativeArguments args) {
@@ -84,12 +84,10 @@ void ReportUnhandledException(Dart_NativeArguments args) {
 Dart_Handle SendPlatformMessage(Dart_Handle window,
                                 const std::string& name,
                                 Dart_Handle callback,
-                                const tonic::DartByteData& data) {
+                                Dart_Handle data_handle) {
   UIDartState* dart_state = UIDartState::Current();
 
   if (!dart_state->window()) {
-    // Must release the TypedData buffer before allocating other Dart objects.
-    data.Release();
     return tonic::ToDart(
         "Platform messages can only be sent from the main isolate");
   }
@@ -100,12 +98,12 @@ Dart_Handle SendPlatformMessage(Dart_Handle window,
         tonic::DartPersistentValue(dart_state, callback),
         dart_state->GetTaskRunners().GetUITaskRunner());
   }
-  if (Dart_IsNull(data.dart_handle())) {
+  if (Dart_IsNull(data_handle)) {
     dart_state->window()->client()->HandlePlatformMessage(
         fml::MakeRefCounted<PlatformMessage>(name, response));
   } else {
+    tonic::DartByteData data(data_handle);
     const uint8_t* buffer = static_cast<const uint8_t*>(data.data());
-
     dart_state->window()->client()->HandlePlatformMessage(
         fml::MakeRefCounted<PlatformMessage>(
             name, std::vector<uint8_t>(buffer, buffer + data.length_in_bytes()),
@@ -212,6 +210,18 @@ void Window::UpdateUserSettingsData(const std::string& data) {
 
   tonic::LogIfError(tonic::DartInvokeField(library_.value(),
                                            "_updateUserSettingsData",
+                                           {
+                                               tonic::StdStringToDart(data),
+                                           }));
+}
+
+void Window::UpdateLifecycleState(const std::string& data) {
+  std::shared_ptr<tonic::DartState> dart_state = library_.dart_state().lock();
+  if (!dart_state)
+    return;
+  tonic::DartState::Scope scope(dart_state);
+  tonic::LogIfError(tonic::DartInvokeField(library_.value(),
+                                           "_updateLifecycleState",
                                            {
                                                tonic::StdStringToDart(data),
                                            }));
@@ -346,4 +356,4 @@ void Window::RegisterNatives(tonic::DartLibraryNatives* natives) {
   });
 }
 
-}  // namespace blink
+}  // namespace flutter

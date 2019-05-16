@@ -4,9 +4,14 @@
 
 package io.flutter.plugin.platform;
 
+import static android.view.MotionEvent.PointerCoords;
+import static android.view.MotionEvent.PointerProperties;
+
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
+import android.support.annotation.UiThread;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -14,16 +19,13 @@ import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.StandardMethodCodec;
+import io.flutter.view.AccessibilityBridge;
 import io.flutter.view.TextureRegistry;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static android.view.MotionEvent.PointerCoords;
-import static android.view.MotionEvent.PointerProperties;
 
 /**
  * Manages platform views.
@@ -31,7 +33,7 @@ import static android.view.MotionEvent.PointerProperties;
  * Each {@link io.flutter.app.FlutterPluginRegistry} has a single platform views controller.
  * A platform views controller can be attached to at most one Flutter view.
  */
-public class PlatformViewsController implements MethodChannel.MethodCallHandler {
+public class PlatformViewsController implements MethodChannel.MethodCallHandler, PlatformViewsAccessibilityDelegate {
     private static final String TAG = "PlatformViewsController";
 
     private static final String CHANNEL_NAME = "flutter/platform_views";
@@ -50,11 +52,15 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
     // The messenger used to communicate with the framework over the platform views channel.
     private BinaryMessenger mMessenger;
 
+    // The accessibility bridge to which accessibility events form the platform views will be dispatched.
+    private final AccessibilityEventsDelegate mAccessibilityEventsDelegate;
+
     private final HashMap<Integer, VirtualDisplayController> vdControllers;
 
     public PlatformViewsController() {
         mRegistry = new PlatformViewRegistryImpl();
         vdControllers = new HashMap<>();
+        mAccessibilityEventsDelegate = new AccessibilityEventsDelegate();
     }
 
     /**
@@ -87,11 +93,22 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
      * After calling this the platform views controller will no longer listen to it's previous messenger, and will
      * not maintain references to the texture registry, context, and messenger passed to the previous attach call.
      */
+    @UiThread
     public void detach() {
         mMessenger.setMessageHandler(CHANNEL_NAME, null);
         mMessenger = null;
         mContext = null;
         mTextureRegistry = null;
+    }
+
+    @Override
+    public void attachAccessibilityBridge(AccessibilityBridge accessibilityBridge) {
+        mAccessibilityEventsDelegate.setAccessibilityBridge(accessibilityBridge);
+    }
+
+    @Override
+    public void detachAccessibiltyBridge() {
+        mAccessibilityEventsDelegate.setAccessibilityBridge(null);
     }
 
     public PlatformViewRegistry getRegistry() {
@@ -104,6 +121,15 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
 
     public void onPreEngineRestart() {
         flushAllViews();
+    }
+
+    @Override
+    public View getPlatformViewById(Integer id) {
+        VirtualDisplayController controller = vdControllers.get(id);
+        if (controller == null) {
+            return null;
+        }
+        return controller.getView();
     }
 
     @Override
@@ -175,13 +201,18 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
             createParams = viewFactory.getCreateArgsCodec().decodeMessage(ByteBuffer.wrap((byte[]) args.get("params")));
         }
 
+        int physicalWidth = toPhysicalPixels(logicalWidth);
+        int physicalHeight = toPhysicalPixels(logicalHeight);
+        validateVirtualDisplayDimensions(physicalWidth, physicalHeight);
+
         TextureRegistry.SurfaceTextureEntry textureEntry = mTextureRegistry.createSurfaceTexture();
         VirtualDisplayController vdController = VirtualDisplayController.create(
                 mContext,
+                mAccessibilityEventsDelegate,
                 viewFactory,
                 textureEntry,
-                toPhysicalPixels(logicalWidth),
-                toPhysicalPixels(logicalHeight),
+                physicalWidth,
+                physicalHeight,
                 id,
                 createParams
         );
@@ -236,9 +267,14 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
             );
             return;
         }
+
+        int physicalWidth = toPhysicalPixels(width);
+        int physicalHeight = toPhysicalPixels(height);
+        validateVirtualDisplayDimensions(physicalWidth, physicalHeight);
+
         vdController.resize(
-                toPhysicalPixels(width),
-                toPhysicalPixels(height),
+                physicalWidth,
+                physicalHeight,
                 new Runnable() {
                     @Override
                     public void run() {
@@ -379,6 +415,19 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
         coords.x = (float) (double) coordsList.get(7) * density;
         coords.y = (float) (double) coordsList.get(8) * density;
         return coords;
+    }
+
+    // Creating a VirtualDisplay larger than the size of the device screen size
+    // could cause the device to restart: https://github.com/flutter/flutter/issues/28978
+    private void validateVirtualDisplayDimensions(int width, int height) {
+        DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
+        if (height > metrics.heightPixels || width > metrics.widthPixels) {
+            String error = "Creating a virtual display of size: "
+                +  "[" + width + ", " + height + "]"
+                + " is not supported. It is larger than the device screen size: "
+                +  "[" + metrics.widthPixels + ", " + metrics.heightPixels + "].";
+            throw new IllegalArgumentException(error);
+        }
     }
 
     private int toPhysicalPixels(double logicalPixels) {

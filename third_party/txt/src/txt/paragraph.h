@@ -79,7 +79,10 @@ class Paragraph {
     // The line spacing will be added to the top of the rect.
     kIncludeLineSpacingTop,
     // The line spacing will be added to the bottom of the rect.
-    kIncludeLineSpacingBottom
+    kIncludeLineSpacingBottom,
+
+    // Calculate boxes based on the strut's metrics.
+    kStrut
   };
 
   enum class RectWidthStyle {
@@ -155,6 +158,12 @@ class Paragraph {
   // GetMaxWidth() >= GetLayoutWidth().
   double GetMaxWidth() const;
 
+  // Returns the width of the longest line as found in Layout(), which is
+  // defined as the horizontal distance from the left edge of the leftmost glyph
+  // to the right edge of the rightmost glyph. We expect that
+  // GetLongestLine() <= GetMaxWidth().
+  double GetLongestLine() const;
+
   // Distance from top of paragraph to the Alphabetic baseline of the first
   // line. Used for alphabetic fonts (A-Z, a-z, greek, etc.)
   double GetAlphabeticBaseline() const;
@@ -212,6 +221,7 @@ class Paragraph {
   FRIEND_TEST_WINDOWS_DISABLED(ParagraphTest, RightAlignParagraph);
   FRIEND_TEST_WINDOWS_DISABLED(ParagraphTest, CenterAlignParagraph);
   FRIEND_TEST_WINDOWS_DISABLED(ParagraphTest, JustifyAlignParagraph);
+  FRIEND_TEST_WINDOWS_DISABLED(ParagraphTest, JustifyRTL);
   FRIEND_TEST(ParagraphTest, DecorationsParagraph);
   FRIEND_TEST(ParagraphTest, ItalicsParagraph);
   FRIEND_TEST(ParagraphTest, ChineseParagraph);
@@ -260,6 +270,18 @@ class Paragraph {
   std::vector<double> line_baselines_;
   bool did_exceed_max_lines_;
 
+  // Strut metrics of zero will have no effect on the layout.
+  struct StrutMetrics {
+    double ascent = 0;  // Positive value to keep signs clear.
+    double descent = 0;
+    double leading = 0;
+    double half_leading = 0;
+    double line_height = 0;
+    bool force_strut = false;
+  };
+
+  StrutMetrics strut_;
+
   // Metrics for use in GetRectsForRange(...);
   // Per-line max metrics over all runs in a given line.
   std::vector<SkScalar> line_max_spacings_;
@@ -271,19 +293,31 @@ class Paragraph {
 
   class BidiRun {
    public:
+    // Constructs a BidiRun with is_ghost defaulted to false.
     BidiRun(size_t s, size_t e, TextDirection d, const TextStyle& st)
-        : start_(s), end_(e), direction_(d), style_(&st) {}
+        : start_(s), end_(e), direction_(d), style_(&st), is_ghost_(false) {}
+
+    // Constructs a BidiRun with a custom is_ghost flag.
+    BidiRun(size_t s,
+            size_t e,
+            TextDirection d,
+            const TextStyle& st,
+            bool is_ghost)
+        : start_(s), end_(e), direction_(d), style_(&st), is_ghost_(is_ghost) {}
 
     size_t start() const { return start_; }
     size_t end() const { return end_; }
     TextDirection direction() const { return direction_; }
     const TextStyle& style() const { return *style_; }
     bool is_rtl() const { return direction_ == TextDirection::rtl; }
+    // Tracks if the run represents trailing whitespace.
+    bool is_ghost() const { return is_ghost_; }
 
    private:
     size_t start_, end_;
     TextDirection direction_;
     const TextStyle* style_;
+    bool is_ghost_;
   };
 
   struct GlyphPosition {
@@ -335,6 +369,7 @@ class Paragraph {
   // The max width of the paragraph as provided in the most recent Layout()
   // call.
   double width_ = -1.0f;
+  double longest_line_ = -1.0f;
   double max_intrinsic_width_ = 0;
   double min_intrinsic_width_ = 0;
   double alphabetic_baseline_ = FLT_MAX;
@@ -365,6 +400,9 @@ class Paragraph {
 
   // Break the text into runs based on LTR/RTL text direction.
   bool ComputeBidiRuns(std::vector<BidiRun>* result);
+
+  // Calculates and populates strut based on paragraph_style_ strut info.
+  void ComputeStrut(StrutMetrics* strut, SkFont& font);
 
   // Calculate the starting X offset of a line based on the line's width and
   // alignment.

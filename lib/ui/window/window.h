@@ -21,7 +21,7 @@ namespace tonic {
 class DartLibraryNatives;
 }  // namespace tonic
 
-namespace blink {
+namespace flutter {
 class FontCollection;
 class Scene;
 
@@ -65,6 +65,7 @@ class Window final {
   void UpdateWindowMetrics(const ViewportMetrics& metrics);
   void UpdateLocales(const std::vector<std::string>& locales);
   void UpdateUserSettingsData(const std::string& data);
+  void UpdateLifecycleState(const std::string& data);
   void UpdateSemanticsEnabled(bool enabled);
   void UpdateAccessibilityFeatures(int32_t flags);
   void DispatchPlatformMessage(fml::RefPtr<PlatformMessage> message);
@@ -87,10 +88,10 @@ class Window final {
 
   // We use id 0 to mean that no response is expected.
   int next_response_id_ = 1;
-  std::unordered_map<int, fml::RefPtr<blink::PlatformMessageResponse>>
+  std::unordered_map<int, fml::RefPtr<PlatformMessageResponse>>
       pending_responses_;
 };
 
-}  // namespace blink
+}  // namespace flutter
 
 #endif  // FLUTTER_LIB_UI_WINDOW_WINDOW_H_

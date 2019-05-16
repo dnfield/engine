@@ -20,10 +20,10 @@
 #include "flutter/shell/platform/android/platform_view_android.h"
 #include "flutter/shell/platform/android/platform_view_android_jni.h"
 
-namespace shell {
+namespace flutter {
 
 AndroidShellHolder::AndroidShellHolder(
-    blink::Settings settings,
+    flutter::Settings settings,
     fml::jni::JavaObjectWeakGlobalRef java_object,
     bool is_background_view)
     : settings_(std::move(settings)),
@@ -97,11 +97,11 @@ AndroidShellHolder::AndroidShellHolder(
     ui_runner = thread_host_.ui_thread->GetTaskRunner();
     io_runner = thread_host_.io_thread->GetTaskRunner();
   }
-  blink::TaskRunners task_runners(thread_label,     // label
-                                  platform_runner,  // platform
-                                  gpu_runner,       // gpu
-                                  ui_runner,        // ui
-                                  io_runner         // io
+  flutter::TaskRunners task_runners(thread_label,     // label
+                                    platform_runner,  // platform
+                                    gpu_runner,       // gpu
+                                    ui_runner,        // ui
+                                    io_runner         // io
   );
 
   shell_ =
@@ -185,7 +185,7 @@ bool AndroidShellHolder::IsValid() const {
   return is_valid_;
 }
 
-const blink::Settings& AndroidShellHolder::GetSettings() const {
+const flutter::Settings& AndroidShellHolder::GetSettings() const {
   return settings_;
 }
 
@@ -199,8 +199,8 @@ void AndroidShellHolder::Launch(RunConfiguration config) {
                          config = std::move(config)     //
   ]() mutable {
         FML_LOG(INFO) << "Attempting to launch engine configuration...";
-        if (!engine || engine->Run(std::move(config)) ==
-                           shell::Engine::RunStatus::Failure) {
+        if (!engine ||
+            engine->Run(std::move(config)) == Engine::RunStatus::Failure) {
           FML_LOG(ERROR) << "Could not launch engine in configuration.";
         } else {
           FML_LOG(INFO) << "Isolate for engine configuration successfully "
@@ -210,7 +210,7 @@ void AndroidShellHolder::Launch(RunConfiguration config) {
 }
 
 void AndroidShellHolder::SetViewportMetrics(
-    const blink::ViewportMetrics& metrics) {
+    const flutter::ViewportMetrics& metrics) {
   if (!IsValid()) {
     return;
   }
@@ -224,17 +224,23 @@ void AndroidShellHolder::SetViewportMetrics(
 }
 
 void AndroidShellHolder::DispatchPointerDataPacket(
-    std::unique_ptr<blink::PointerDataPacket> packet) {
+    std::unique_ptr<flutter::PointerDataPacket> packet) {
   if (!IsValid()) {
     return;
   }
 
+  TRACE_EVENT0("flutter", "AndroidShellHolder::DispatchPointerDataPacket");
+  TRACE_FLOW_BEGIN("flutter", "PointerEvent", next_pointer_flow_id_);
+
   shell_->GetTaskRunners().GetUITaskRunner()->PostTask(fml::MakeCopyable(
-      [engine = shell_->GetEngine(), packet = std::move(packet)] {
+      [engine = shell_->GetEngine(), packet = std::move(packet),
+       flow_id = next_pointer_flow_id_] {
         if (engine) {
-          engine->DispatchPointerDataPacket(*packet);
+          engine->DispatchPointerDataPacket(*packet, flow_id);
         }
       }));
+
+  next_pointer_flow_id_++;
 }
 
 Rasterizer::Screenshot AndroidShellHolder::Screenshot(
@@ -251,4 +257,4 @@ fml::WeakPtr<PlatformViewAndroid> AndroidShellHolder::GetPlatformView() {
   return platform_view_;
 }
 
-}  // namespace shell
+}  // namespace flutter

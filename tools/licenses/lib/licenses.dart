@@ -230,6 +230,7 @@ abstract class License implements Comparable<License> {
     switch (url) {
       case 'Apache:2.0':
       case 'http://www.apache.org/licenses/LICENSE-2.0':
+      case 'https://www.apache.org/licenses/LICENSE-2.0':
         body = system.File('data/apache-license-2.0').readAsStringSync();
         type = LicenseType.apache;
         break;
@@ -268,11 +269,16 @@ abstract class License implements Comparable<License> {
         body = system.File('data/academic-3.0').readAsStringSync();
         type = LicenseType.afl;
         break;
+      case 'Mozilla Public License:1.1':
+        body = system.File('data/mozilla-1.1').readAsStringSync();
+        type = LicenseType.mpl;
+        break;
       case 'http://mozilla.org/MPL/2.0/:2.0':
         body = system.File('data/mozilla-2.0').readAsStringSync();
         type = LicenseType.mpl;
         break;
       case 'http://opensource.org/licenses/MIT':
+      case 'https://opensource.org/licenses/MIT':
       case 'http://opensource->org/licenses/MIT': // i don't even
         body = system.File('data/mit').readAsStringSync();
         type = LicenseType.mit;
@@ -370,7 +376,7 @@ abstract class License implements Comparable<License> {
 
   Iterable<String> get licensees => _licensees;
   final List<String> _licensees = <String>[];
-  final Set<String> _libraries = Set<String>();
+  final Set<String> _libraries = <String>{};
 
   bool get isUsed => _licensees.isNotEmpty;
 

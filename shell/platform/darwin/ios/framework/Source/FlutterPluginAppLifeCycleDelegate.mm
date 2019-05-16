@@ -60,7 +60,7 @@ static BOOL isPowerOfTwo(NSUInteger x) {
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  blink::DartCallbackCache::LoadCacheFromDisk();
+  flutter::DartCallbackCache::LoadCacheFromDisk();
   for (id<FlutterPlugin> plugin in [_pluginDelegates allObjects]) {
     if (!plugin) {
       continue;
@@ -94,6 +94,7 @@ static BOOL isPowerOfTwo(NSUInteger x) {
   _debugBackgroundTask = [application
       beginBackgroundTaskWithName:@"Flutter debug task"
                 expirationHandler:^{
+                  [application endBackgroundTask:_debugBackgroundTask];
                   FML_LOG(WARNING)
                       << "\nThe OS has terminated the Flutter debug connection for being "
                          "inactive in the background for too long.\n\n"

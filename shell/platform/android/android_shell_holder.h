@@ -53,12 +53,9 @@ class AndroidShellHolder {
   std::unique_ptr<Shell> shell_;
   bool is_valid_ = false;
   pthread_key_t thread_destruct_key_;
-<<<<<<< HEAD
-  blink::DartServiceIsolate::CallbackHandle callback_handle_;
+  flutter::DartServiceIsolate::CallbackHandle callback_handle_;
   fml::WeakPtrFactory<AndroidShellHolder> weak_factory_;
-=======
   uint64_t next_pointer_flow_id_;
->>>>>>> upstream/master
 
   static void ThreadDestructCallback(void* value);
 

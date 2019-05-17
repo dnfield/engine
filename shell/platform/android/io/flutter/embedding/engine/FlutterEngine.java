@@ -115,7 +115,7 @@ public class FlutterEngine {
    * A new {@code FlutterEngine} does come with all default system channels attached.
    */
   public FlutterEngine(@NonNull Context context) {
-    this.flutterJNI = new FlutterJNI();
+    this.flutterJNI = new FlutterJNI(context);
     flutterJNI.addEngineLifecycleListener(engineLifecycleListener);
     attachToJni();
 

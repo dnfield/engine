@@ -4,7 +4,9 @@
 
 package io.flutter.embedding.engine;
 
+import android.content.Context;
 import android.content.res.AssetManager;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.net.nsd.NsdManager;
@@ -61,7 +63,7 @@ import io.flutter.view.AccessibilityBridge;
  *
  * {@code
  *     // Instantiate FlutterJNI and attach to the native side.
- *     FlutterJNI flutterJNI = new FlutterJNI();
+ *     FlutterJNI flutterJNI = new FlutterJNI(context);
  *     flutterJNI.attachToNative();
  *
  *     // Use FlutterJNI as desired.
@@ -111,9 +113,15 @@ public class FlutterJNI {
 
   private final Looper mainLooper; // cached to avoid synchronization on repeat access.
 
-  public FlutterJNI(NsdManager nsdManager, String packageName) {
-    this.nsdManager = nsdManager;
-    this.packageName = packageName;
+  public FlutterJNI(@NonNull Context context) {
+    if (!BuildConfig.RELEASE && context.checkSelfPermission("android.permission.INTERNET")
+            == PackageManager.PERMISSION_GRANTED) {
+        this.nsdManager = (NsdManager)context.getSystemService(Context.NSD_SERVICE);
+        this.packageName = context.getPackageName();
+    } else {
+      this.nsdManager = null;
+      this.packageName = null;
+    }
     // We cache the main looper so that we can ensure calls are made on the main thread
     // without consistently paying the synchronization cost of getMainLooper().
     mainLooper = Looper.getMainLooper();
@@ -254,22 +262,25 @@ public class FlutterJNI {
 
   // Called by native when the observatory port is available.
   @SuppressWarnings("unused")
-  private void publishObservatoryPort(int port) {
+  private void publishObservatoryPort(final int port, final String authCode) {
     if (nsdManager != null) {
       NsdServiceInfo serviceInfo = new NsdServiceInfo();
       serviceInfo.setServiceName(packageName);
       serviceInfo.setServiceType("_dartobservatory._tcp");
       serviceInfo.setPort(port);
+      serviceInfo.setAttribute("authCode", authCode);
       nsdManager.registerService(
         serviceInfo, NsdManager.PROTOCOL_DNS_SD, new NsdManager.RegistrationListener() {
           @Override
           public void onServiceRegistered(NsdServiceInfo serviceInfo) {
-            // TODO(dnfield): log success when not in release mode (https://github.com/flutter/flutter/issues/25391)
+            if (!BuildConfig.RELEASE) {
+              Log.i(TAG, String.format("Observatory port advertized for port %d with authCode '%s'.", port, authCode));
+            }
           }
 
           @Override
           public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
-            // TODO(dnfield): log failure when not in release mode (https://github.com/flutter/flutter/issues/25391)
+            Log.e(TAG, "Observatory registration failed.");
           }
 
           @Override

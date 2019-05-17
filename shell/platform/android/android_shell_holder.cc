@@ -137,7 +137,7 @@ AndroidShellHolder::AndroidShellHolder(
 
 #if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
     FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
-    callback_handle_ = blink::DartServiceIsolate::AddServerStatusCallback(
+    callback_handle_ = flutter::DartServiceIsolate::AddServerStatusCallback(
         [weak = weak_factory_.GetWeakPtr(),
          runner = fml::MessageLoop::GetCurrent().GetTaskRunner()](
             const std::string& uri) {
@@ -154,7 +154,7 @@ AndroidShellHolder::AndroidShellHolder(
 AndroidShellHolder::~AndroidShellHolder() {
 #if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
     FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
-  blink::DartServiceIsolate::RemoveServerStatusCallback(
+  flutter::DartServiceIsolate::RemoveServerStatusCallback(
       std::move(callback_handle_));
 #endif
   shell_.reset();
@@ -169,12 +169,15 @@ void AndroidShellHolder::PublishServiceProtocolPort(const std::string& uri) {
   auto colonPosition = uri.find_last_of(":");
   auto portSubstring = uri.substr(colonPosition + 1);
   auto port = std::stoi(portSubstring);
+  auto lastSlash = uri.find_last_of("/", uri.size() - 2);
   auto env = fml::jni::AttachCurrentThread();
+  auto authCode = fml::jni::StringToJavaString(
+      env, uri.substr(lastSlash + 1, uri.size() - 2 - lastSlash));
   auto java_object = java_object_.get(env);
   if (java_object.is_null()) {
     return;
   }
-  FlutterPublishObservatoryPort(env, java_object.obj(), port);
+  FlutterPublishObservatoryPort(env, java_object.obj(), port, authCode.obj());
 }
 
 void AndroidShellHolder::ThreadDestructCallback(void* value) {

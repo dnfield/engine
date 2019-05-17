@@ -6,11 +6,8 @@ package io.flutter.view;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.pm.PackageManager;
-import android.net.nsd.NsdManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.UiThread;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import io.flutter.app.FlutterPluginRegistry;
 import io.flutter.embedding.engine.FlutterJNI;
@@ -44,13 +41,7 @@ public class FlutterNativeView implements BinaryMessenger {
     public FlutterNativeView(@NonNull Context context, boolean isBackgroundView) {
         mContext = context;
         mPluginRegistry = new FlutterPluginRegistry(this, context);
-        NsdManager nsdManager = null;
-        // TODO(dnfield): only do this when not in release mode (https://github.com/flutter/flutter/issues/25391)
-        if (ContextCompat.checkSelfPermission(context, "android.permission.INTERNET")
-                == PackageManager.PERMISSION_GRANTED) {
-            nsdManager = (NsdManager)context.getSystemService(Context.NSD_SERVICE);
-        }
-        mFlutterJNI = new FlutterJNI(nsdManager, context.getPackageName());
+        mFlutterJNI = new FlutterJNI(context);
         mFlutterJNI.setRenderSurface(new RenderSurfaceImpl());
         this.dartExecutor = new DartExecutor(mFlutterJNI);
         mFlutterJNI.addEngineLifecycleListener(new EngineLifecycleListenerImpl());

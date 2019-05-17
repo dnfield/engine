@@ -22,7 +22,10 @@ void FlutterViewHandlePlatformMessageResponse(JNIEnv* env,
                                               jint responseId,
                                               jobject response);
 
-void FlutterPublishObservatoryPort(JNIEnv* env, jobject obj, jint port);
+void FlutterPublishObservatoryPort(JNIEnv* env,
+                                   jobject obj,
+                                   jint port,
+                                   jstring authCode);
 
 void FlutterViewUpdateSemantics(JNIEnv* env,
                                 jobject obj,

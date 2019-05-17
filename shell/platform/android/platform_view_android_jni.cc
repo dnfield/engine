@@ -88,10 +88,13 @@ void FlutterViewHandlePlatformMessageResponse(JNIEnv* env,
 }
 
 static jmethodID g_publish_observatory_port_method = nullptr;
-void FlutterPublishObservatoryPort(JNIEnv* env, jobject obj, jint port) {
+void FlutterPublishObservatoryPort(JNIEnv* env,
+                                   jobject obj,
+                                   jint port,
+                                   jstring authCode) {
 #if FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_RELEASE && \
     FLUTTER_RUNTIME_MODE != FLUTTER_RUNTIME_MODE_DYNAMIC_RELEASE
-  env->CallVoidMethod(obj, g_publish_observatory_port_method, port);
+  env->CallVoidMethod(obj, g_publish_observatory_port_method, port, authCode);
   FML_CHECK(CheckException(env));
 #endif
 }
@@ -682,7 +685,7 @@ bool RegisterApi(JNIEnv* env) {
   }
 
   g_publish_observatory_port_method = env->GetMethodID(
-      g_flutter_jni_class->obj(), "publishObservatoryPort", "(I)V");
+      g_flutter_jni_class->obj(), "publishObservatoryPort", "(ILjava/lang/String;)V");
   if (g_publish_observatory_port_method == nullptr) {
     FML_LOG(ERROR) << "Could not locate publishObservatoryPort method";
     return false;

@@ -46,6 +46,8 @@ class ShellIOManager final : public IOManager {
 
   fml::WeakPtr<ShellIOManager> GetWeakPtr();
 
+  fml::WeakPtr<IOManager> GetWeakIOManager() const override;
+
  private:
   // Resource context management.
   sk_sp<GrContext> resource_context_;

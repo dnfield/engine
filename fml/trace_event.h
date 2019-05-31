@@ -244,6 +244,36 @@ class ScopedInstantEnd {
   FML_DISALLOW_COPY_AND_ASSIGN(ScopedInstantEnd);
 };
 
+class TraceFlow {
+ public:
+  TraceFlow(const char* label) : label_(label), nonce_(TraceNonce()) {
+    TraceEventFlowBegin0("flutter", label_, nonce_);
+  }
+
+  ~TraceFlow() { End(label_); }
+
+  TraceFlow(TraceFlow&& other) : label_(other.label_), nonce_(other.nonce_) {
+    other.nonce_ = 0;
+  }
+
+  void Step(const char* label) const {
+    TraceEventFlowStep0("flutter", label, nonce_);
+  }
+
+  void End(const char* label = nullptr) {
+    if (nonce_ != 0) {
+      TraceEventFlowEnd0("flutter", label == nullptr ? label_ : label, nonce_);
+      nonce_ = 0;
+    }
+  }
+
+ private:
+  const char* label_;
+  size_t nonce_;
+
+  FML_DISALLOW_COPY_AND_ASSIGN(TraceFlow);
+};
+
 }  // namespace tracing
 }  // namespace fml
 

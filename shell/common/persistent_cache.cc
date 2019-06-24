@@ -7,15 +7,15 @@
 #include <memory>
 #include <string>
 
-#include "flutter/common/version/version.h"
 #include "flutter/fml/base32.h"
 #include "flutter/fml/file.h"
 #include "flutter/fml/make_copyable.h"
 #include "flutter/fml/mapping.h"
 #include "flutter/fml/paths.h"
 #include "flutter/fml/trace_event.h"
+#include "flutter/shell/version/version.h"
 
-namespace shell {
+namespace flutter {
 
 std::string PersistentCache::cache_base_path_;
 
@@ -59,12 +59,11 @@ PersistentCache::PersistentCache(bool read_only) : is_read_only_(read_only) {
   }
 
   if (cache_base_dir.is_valid()) {
-    cache_directory_ = std::make_shared<fml::UniqueFD>(
-        CreateDirectory(cache_base_dir,
-                        {"flutter_engine", blink::GetFlutterEngineVersion(),
-                         "skia", blink::GetSkiaVersion()},
-                        read_only ? fml::FilePermission::kRead
-                                  : fml::FilePermission::kReadWrite));
+    cache_directory_ = std::make_shared<fml::UniqueFD>(CreateDirectory(
+        cache_base_dir,
+        {"flutter_engine", GetFlutterEngineVersion(), "skia", GetSkiaVersion()},
+        read_only ? fml::FilePermission::kRead
+                  : fml::FilePermission::kReadWrite));
   }
   if (!IsValid()) {
     FML_LOG(WARNING) << "Could not acquire the persistent cache directory. "
@@ -181,13 +180,13 @@ void PersistentCache::DumpSkp(const SkData& data) {
 
 void PersistentCache::AddWorkerTaskRunner(
     fml::RefPtr<fml::TaskRunner> task_runner) {
-  std::lock_guard<std::mutex> lock(worker_task_runners_mutex_);
+  std::scoped_lock lock(worker_task_runners_mutex_);
   worker_task_runners_.insert(task_runner);
 }
 
 void PersistentCache::RemoveWorkerTaskRunner(
     fml::RefPtr<fml::TaskRunner> task_runner) {
-  std::lock_guard<std::mutex> lock(worker_task_runners_mutex_);
+  std::scoped_lock lock(worker_task_runners_mutex_);
   auto found = worker_task_runners_.find(task_runner);
   if (found != worker_task_runners_.end()) {
     worker_task_runners_.erase(found);
@@ -197,7 +196,7 @@ void PersistentCache::RemoveWorkerTaskRunner(
 fml::RefPtr<fml::TaskRunner> PersistentCache::GetWorkerTaskRunner() const {
   fml::RefPtr<fml::TaskRunner> worker;
 
-  std::lock_guard<std::mutex> lock(worker_task_runners_mutex_);
+  std::scoped_lock lock(worker_task_runners_mutex_);
   if (!worker_task_runners_.empty()) {
     worker = *worker_task_runners_.begin();
   }
@@ -205,4 +204,4 @@ fml::RefPtr<fml::TaskRunner> PersistentCache::GetWorkerTaskRunner() const {
   return worker;
 }
 
-}  // namespace shell
+}  // namespace flutter

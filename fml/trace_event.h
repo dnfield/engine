@@ -8,10 +8,16 @@
 #include "flutter/fml/build_config.h"
 
 #if defined(OS_FUCHSIA)
+#if !defined(FUCHSIA_SDK)
 
 // Forward to the system tracing mechanism on Fuchsia.
 
 #include <trace/event.h>
+
+// TODO(DNO-448): This is disabled because the Fuchsia counter id json parsing
+// only handles ints whereas this can produce ints or strings.
+#define FML_TRACE_COUNTER(a, b, c, args...)
+#define FML_TRACE_EVENT(a, b, args...) TRACE_DURATION(a, b)
 
 #define TRACE_EVENT0(a, b) TRACE_DURATION(a, b)
 #define TRACE_EVENT1(a, b, c, d) TRACE_DURATION(a, b, c, d)
@@ -20,8 +26,10 @@
 #define TRACE_EVENT_ASYNC_END0(a, b, c) TRACE_ASYNC_END(a, b, c)
 #define TRACE_EVENT_ASYNC_BEGIN1(a, b, c, d, e) TRACE_ASYNC_BEGIN(a, b, c, d, e)
 #define TRACE_EVENT_ASYNC_END1(a, b, c, d, e) TRACE_ASYNC_END(a, b, c, d, e)
+#define TRACE_EVENT_INSTANT0(a, b) TRACE_INSTANT(a, b, TRACE_SCOPE_THREAD)
 
-#endif  // defined(OS_FUCHSIA)
+#endif  //  !defined(FUCHSIA_SDK)
+#endif  //  defined(OS_FUCHSIA)
 
 #include <cstddef>
 #include <cstdint>
@@ -33,8 +41,7 @@
 #include "flutter/fml/time/time_point.h"
 #include "third_party/dart/runtime/include/dart_tools_api.h"
 
-#if !defined(OS_FUCHSIA)
-
+#if !defined(OS_FUCHSIA) || defined(FUCHSIA_SDK)
 #ifndef TRACE_EVENT_HIDE_MACROS
 
 #define __FML__TOKEN_CAT__(x, y) x##y
@@ -97,8 +104,7 @@
   ::fml::tracing::TraceEventFlowEnd0(category, name, id);
 
 #endif  // TRACE_EVENT_HIDE_MACROS
-
-#endif  // !defined(OS_FUCHSIA)
+#endif  // !defined(OS_FUCHSIA) || defined(FUCHSIA_SDK)
 
 namespace fml {
 namespace tracing {

@@ -9,8 +9,9 @@
 
 #include "flutter/common/settings.h"
 #include "flutter/fml/macros.h"
+#include "flutter/runtime/dart_service_isolate.h"
 
-namespace shell {
+namespace flutter {
 
 class FlutterMain {
  public:
@@ -20,12 +21,13 @@ class FlutterMain {
 
   static FlutterMain& Get();
 
-  const blink::Settings& GetSettings() const;
+  const flutter::Settings& GetSettings() const;
 
  private:
-  const blink::Settings settings_;
+  const flutter::Settings settings_;
+  DartServiceIsolate::CallbackHandle observatory_uri_callback_;
 
-  FlutterMain(blink::Settings settings);
+  FlutterMain(flutter::Settings settings);
 
   static void Init(JNIEnv* env,
                    jclass clazz,
@@ -35,9 +37,11 @@ class FlutterMain {
                    jstring appRootPath,
                    jstring engineCachesPath);
 
+  void SetupObservatoryUriCallback(JNIEnv* env);
+
   FML_DISALLOW_COPY_AND_ASSIGN(FlutterMain);
 };
 
-}  // namespace shell
+}  // namespace flutter
 
 #endif  // SHELL_PLATFORM_ANDROID_FLUTTER_MAIN_H_

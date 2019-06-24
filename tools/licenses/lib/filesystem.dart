@@ -195,6 +195,7 @@ FileType identifyFile(String name, Reader reader) {
     case '.jpg':
     case '.jpeg': return FileType.binary; // JPEG
     case '.ico': return FileType.binary; // Windows icon format
+    case '.icns': return FileType.binary; // macOS icon format
     case '.bmp': return FileType.binary; // Windows bitmap format
     case '.wbmp': return FileType.binary; // Wireless bitmap format
     case '.webp': return FileType.binary; // WEBP
@@ -220,6 +221,12 @@ FileType identifyFile(String name, Reader reader) {
     case '.tar': return FileType.tar; // Tar
     case '.gz': return FileType.gz; // GZip
     case '.bzip2': return FileType.bzip2; // BZip2
+    // Image file types from the Fuchsia SDK.
+    case '.blk':
+    case '.vboot':
+    case '.snapshot':
+    case '.zbi':
+      return FileType.binary;
     // Special cases
     case '.patch':
     case '.diff':

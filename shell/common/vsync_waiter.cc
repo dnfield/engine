@@ -7,7 +7,7 @@
 #include "flutter/fml/task_runner.h"
 #include "flutter/fml/trace_event.h"
 
-namespace shell {
+namespace flutter {
 
 #if defined(OS_FUCHSIA)
 // In general, traces on Fuchsia are recorded across the whole system.
@@ -23,7 +23,7 @@ static constexpr const char* kVsyncTraceName = "VSYNC";
 
 static constexpr const char* kVsyncFlowName = "VsyncFlow";
 
-VsyncWaiter::VsyncWaiter(blink::TaskRunners task_runners)
+VsyncWaiter::VsyncWaiter(TaskRunners task_runners)
     : task_runners_(std::move(task_runners)) {}
 
 VsyncWaiter::~VsyncWaiter() = default;
@@ -37,7 +37,7 @@ void VsyncWaiter::AsyncWaitForVsync(Callback callback) {
   TRACE_EVENT0("flutter", "AsyncWaitForVsync");
 
   {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
+    std::scoped_lock lock(callback_mutex_);
     if (callback_) {
       // The animator may request a frame more than once within a frame
       // interval. Multiple calls to request frame must result in a single
@@ -55,7 +55,7 @@ void VsyncWaiter::FireCallback(fml::TimePoint frame_start_time,
   Callback callback;
 
   {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
+    std::scoped_lock lock(callback_mutex_);
     callback = std::move(callback_);
   }
 
@@ -94,4 +94,4 @@ float VsyncWaiter::GetDisplayRefreshRate() const {
   return kUnknownRefreshRateFPS;
 }
 
-}  // namespace shell
+}  // namespace flutter

@@ -13,8 +13,10 @@
 #include "flutter/fml/synchronization/thread_annotations.h"
 #include "flutter/fml/time/time_point.h"
 
-namespace shell {
+namespace flutter {
 
+/// Abstract Base Class that represents a platform specific mechanism for
+/// getting callbacks when a vsync event happens.
 class VsyncWaiter : public std::enable_shared_from_this<VsyncWaiter> {
  public:
   using Callback = std::function<void(fml::TimePoint frame_start_time,
@@ -27,7 +29,7 @@ class VsyncWaiter : public std::enable_shared_from_this<VsyncWaiter> {
   static constexpr float kUnknownRefreshRateFPS = 0.0;
 
   // Get the display's maximum refresh rate in the unit of frame per second.
-  // Return kUnknownRefreshRateFPS if the refresh rate is unkonwn.
+  // Return kUnknownRefreshRateFPS if the refresh rate is unknown.
   virtual float GetDisplayRefreshRate() const;
 
  protected:
@@ -36,9 +38,9 @@ class VsyncWaiter : public std::enable_shared_from_this<VsyncWaiter> {
   friend class VsyncWaiterAndroid;
   friend class VsyncWaiterEmbedder;
 
-  const blink::TaskRunners task_runners_;
+  const TaskRunners task_runners_;
 
-  VsyncWaiter(blink::TaskRunners task_runners);
+  VsyncWaiter(TaskRunners task_runners);
 
   // Implementations are meant to override this method and arm their vsync
   // latches when in response to this invocation. On vsync, they are meant to
@@ -56,6 +58,6 @@ class VsyncWaiter : public std::enable_shared_from_this<VsyncWaiter> {
   FML_DISALLOW_COPY_AND_ASSIGN(VsyncWaiter);
 };
 
-}  // namespace shell
+}  // namespace flutter
 
 #endif  // FLUTTER_SHELL_COMMON_VSYNC_WAITER_H_

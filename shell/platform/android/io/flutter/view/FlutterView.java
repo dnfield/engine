@@ -7,6 +7,7 @@ package io.flutter.view;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
@@ -14,9 +15,11 @@ import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.os.Handler;
-import android.os.LocaleList;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.os.LocaleList;
 import android.support.annotation.RequiresApi;
+import android.support.annotation.UiThread;
 import android.text.format.DateFormat;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -28,8 +31,8 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import io.flutter.app.FlutterPluginRegistry;
 import io.flutter.embedding.engine.FlutterJNI;
-import io.flutter.embedding.engine.android.AndroidKeyProcessor;
-import io.flutter.embedding.engine.android.AndroidTouchProcessor;
+import io.flutter.embedding.android.AndroidKeyProcessor;
+import io.flutter.embedding.android.AndroidTouchProcessor;
 import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.renderer.FlutterRenderer;
 import io.flutter.embedding.engine.systemchannels.AccessibilityChannel;
@@ -43,6 +46,7 @@ import io.flutter.embedding.engine.systemchannels.SystemChannel;
 import io.flutter.plugin.common.*;
 import io.flutter.plugin.editing.TextInputPlugin;
 import io.flutter.plugin.platform.PlatformPlugin;
+import io.flutter.plugin.platform.PlatformViewsController;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -129,7 +133,11 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     public FlutterView(Context context, AttributeSet attrs, FlutterNativeView nativeView) {
         super(context, attrs);
 
-        Activity activity = (Activity) getContext();
+        Activity activity = getActivity(getContext());
+        if (activity == null) {
+            throw new IllegalArgumentException("Bad context");
+        }
+
         if (nativeView == null) {
             mNativeView = new FlutterNativeView(activity.getApplicationContext());
         } else {
@@ -183,13 +191,34 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         PlatformPlugin platformPlugin = new PlatformPlugin(activity, platformChannel);
         addActivityLifecycleListener(platformPlugin);
         mImm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        mTextInputPlugin = new TextInputPlugin(this, dartExecutor);
+        PlatformViewsController platformViewsController = mNativeView.getPluginRegistry().getPlatformViewsController();
+        mTextInputPlugin = new TextInputPlugin(this, dartExecutor, platformViewsController);
         androidKeyProcessor = new AndroidKeyProcessor(keyEventChannel, mTextInputPlugin);
         androidTouchProcessor = new AndroidTouchProcessor(flutterRenderer);
+        mNativeView.getPluginRegistry().getPlatformViewsController().attachTextInputPlugin(mTextInputPlugin);
 
         // Send initial platform information to Dart
         sendLocalesToDart(getResources().getConfiguration());
         sendUserPlatformSettingsToDart();
+    }
+
+    private static Activity getActivity(Context context) {
+        if (context == null) {
+            return null;
+        }
+        if (context instanceof Activity) {
+            return (Activity) context;
+        }
+        if (context instanceof ContextWrapper) {
+            // Recurse up chain of base contexts until we find an Activity.
+            return getActivity(((ContextWrapper) context).getBaseContext());
+        }
+        return null;
+    }
+
+    @NonNull
+    public DartExecutor getDartExecutor() {
+        return dartExecutor;
     }
 
     @Override
@@ -346,7 +375,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
         if (!isAttached())
             return null;
         getHolder().removeCallback(mSurfaceCallback);
-        mNativeView.detach();
+        mNativeView.detachFromFlutterView();
 
         FlutterNativeView view = mNativeView;
         mNativeView = null;
@@ -366,6 +395,11 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         return mTextInputPlugin.createInputConnection(this, outAttrs);
+    }
+
+    @Override
+    public boolean checkInputConnectionProxy(View view) {
+        return mNativeView.getPluginRegistry().getPlatformViewsController().checkInputConnectionProxy(view);
     }
 
     @Override
@@ -617,11 +651,6 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
                 mMetrics.physicalHeight, mMetrics.physicalPaddingTop, mMetrics.physicalPaddingRight,
                 mMetrics.physicalPaddingBottom, mMetrics.physicalPaddingLeft, mMetrics.physicalViewInsetTop,
                 mMetrics.physicalViewInsetRight, mMetrics.physicalViewInsetBottom, mMetrics.physicalViewInsetLeft);
-
-        WindowManager wm = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
-        float fps = wm.getDefaultDisplay().getRefreshRate();
-        VsyncWaiter.refreshPeriodNanos = (long) (1000000000.0 / fps);
-        VsyncWaiter.refreshRateFPS = fps;
     }
 
     // Called by native to update the semantics/accessibility tree.
@@ -660,11 +689,13 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
 
+        PlatformViewsController platformViewsController = getPluginRegistry().getPlatformViewsController();
         mAccessibilityNodeProvider = new AccessibilityBridge(
             this,
             new AccessibilityChannel(dartExecutor, getFlutterNativeView().getFlutterJNI()),
             (AccessibilityManager) getContext().getSystemService(Context.ACCESSIBILITY_SERVICE),
-            getContext().getContentResolver()
+            getContext().getContentResolver(),
+            platformViewsController
         );
         mAccessibilityNodeProvider.setOnAccessibilityChangeListener(onAccessibilityChangeListener);
 
@@ -704,11 +735,13 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     }
 
     @Override
+    @UiThread
     public void send(String channel, ByteBuffer message) {
         send(channel, message, null);
     }
 
     @Override
+    @UiThread
     public void send(String channel, ByteBuffer message, BinaryReply callback) {
         if (!isAttached()) {
             Log.d(TAG, "FlutterView.send called on a detached view, channel=" + channel);
@@ -718,6 +751,7 @@ public class FlutterView extends SurfaceView implements BinaryMessenger, Texture
     }
 
     @Override
+    @UiThread
     public void setMessageHandler(String channel, BinaryMessageHandler handler) {
         mNativeView.setMessageHandler(channel, handler);
     }

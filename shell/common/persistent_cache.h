@@ -15,8 +15,11 @@
 #include "flutter/fml/unique_fd.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 
-namespace shell {
+namespace flutter {
 
+/// A cache of SkData that gets stored to disk.
+///
+/// This is mainly used for Shaders but is also written to by Dart.
 class PersistentCache : public GrContextOptions::PersistentCache {
  public:
   // Mutable static switch that can be set before GetCacheForProcess. If true,
@@ -72,6 +75,6 @@ class PersistentCache : public GrContextOptions::PersistentCache {
   FML_DISALLOW_COPY_AND_ASSIGN(PersistentCache);
 };
 
-}  // namespace shell
+}  // namespace flutter
 
 #endif  // FLUTTER_SHELL_COMMON_PERSISTENT_CACHE_H_

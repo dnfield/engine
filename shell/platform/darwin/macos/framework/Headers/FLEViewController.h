@@ -5,16 +5,10 @@
 #import <Cocoa/Cocoa.h>
 
 #import "FLEOpenGLContextHandling.h"
-#import "FLEPluginRegistrar.h"
 #import "FLEReshapeListener.h"
-
-#if defined(FLUTTER_FRAMEWORK)
-#import "flutter/shell/platform/darwin/ios/framework/Headers/FlutterBinaryMessenger.h"
-#import "flutter/shell/platform/darwin/ios/framework/Headers/FlutterMacros.h"
-#else
 #import "FlutterBinaryMessenger.h"
 #import "FlutterMacros.h"
-#endif
+#import "FlutterPluginRegistrarMacOS.h"
 
 typedef NS_ENUM(NSInteger, FlutterMouseTrackingMode) {
   // Hover events will never be sent to Flutter.
@@ -35,8 +29,10 @@ typedef NS_ENUM(NSInteger, FlutterMouseTrackingMode) {
  * Flutter engine in non-interactive mode, or with a drawable Flutter canvas.
  */
 FLUTTER_EXPORT
-@interface FLEViewController
-    : NSViewController <FlutterBinaryMessenger, FLEPluginRegistrar, FLEReshapeListener>
+@interface FLEViewController : NSViewController <FlutterBinaryMessenger,
+                                                 FlutterPluginRegistrar,
+                                                 FlutterPluginRegistry,
+                                                 FLEReshapeListener>
 
 /**
  * The view this controller manages when launched in interactive mode (headless set to false). Must
@@ -46,7 +42,7 @@ FLUTTER_EXPORT
 
 /**
  * The style of mouse tracking to use for the view. Defaults to
- * FlutterMouseTrackingModeNone.
+ * FlutterMouseTrackingModeInKeyWindow.
  */
 @property(nonatomic) FlutterMouseTrackingMode mouseTrackingMode;
 
@@ -72,10 +68,5 @@ FLUTTER_EXPORT
  */
 - (BOOL)launchHeadlessEngineWithAssetsPath:(nonnull NSURL*)assets
                       commandLineArguments:(nullable NSArray<NSString*>*)arguments;
-
-/**
- * Returns the FLEPluginRegistrar that should be used to register the plugin with the given name.
- */
-- (nonnull id<FLEPluginRegistrar>)registrarForPlugin:(nonnull NSString*)pluginName;
 
 @end

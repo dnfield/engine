@@ -9,7 +9,7 @@
 #include "flutter/lib/ui/painting/canvas.h"
 #include "third_party/skia/modules/skottie/include/Skottie.h"
 
-namespace blink {
+namespace flutter {
 
 class LottieAnimation : public RefCountedDartWrappable<LottieAnimation> {
   DEFINE_WRAPPERTYPEINFO();

@@ -52,7 +52,8 @@ ShellIOManager::ShellIOManager(
                             : nullptr),
       unref_queue_(fml::MakeRefCounted<flutter::SkiaUnrefQueue>(
           std::move(unref_queue_task_runner),
-          fml::TimeDelta::FromMilliseconds(8))),
+          fml::TimeDelta::FromMilliseconds(8),
+          resource_context_weak_factory_->GetWeakPtr())),
       weak_factory_(this) {
   if (!resource_context_) {
 #ifndef OS_FUCHSIA

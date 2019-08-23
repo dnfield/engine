@@ -11,14 +11,13 @@ pushd "${BASH_SOURCE%/*}/ios/Scenarios"
 xcodebuild -project Scenarios.xcodeproj -scheme Scenarios -configuration Debug \
     -sdk iphoneos \
     -derivedDataPath DerivedData/Scenarios \
-    -allowProvisioningUpdates \
     build-for-testing
 
 pushd DerivedData/Scenarios/Build/Products
 
-if [[ $CODE_SIGNING_ALLOWED == "NO ]]; then
-  /usr/bin/codesign -s $CODE_SIGN_IDENTITY -f --deep Debug-iphoneos/Scenarios.app
-  /usr/bin/codesign -s $CODE_SIGN_IDENTITY -f --deep Debug-iphoneos/ScenariosUITests-Runner.app
+if [[ ! -z $LUCI_CODE_SIGN_IDENTITY ]]; then
+  /usr/bin/codesign -s $LUCI_CODE_SIGN_IDENTITY -f --deep Debug-iphoneos/Scenarios.app
+  /usr/bin/codesign -s $LUCI_CODE_SIGN_IDENTITY -f --deep Debug-iphoneos/ScenariosUITests-Runner.app
 fi
 
 zip -r scenarios.zip Debug-iphoneos Scenarios*.xctestrun

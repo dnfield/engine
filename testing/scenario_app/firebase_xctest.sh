@@ -11,7 +11,6 @@ pushd "${BASH_SOURCE%/*}/ios/Scenarios"
 xcodebuild -project Scenarios.xcodeproj -scheme Scenarios -configuration Debug \
     -sdk iphoneos \
     -derivedDataPath DerivedData/Scenarios \
-    -allowProvisioningUpdates \
     build-for-testing
 
 pushd DerivedData/Scenarios/Build/Products

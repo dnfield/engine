@@ -16,6 +16,11 @@ xcodebuild -project Scenarios.xcodeproj -scheme Scenarios -configuration Debug \
 
 pushd DerivedData/Scenarios/Build/Products
 
+if [[ $CODE_SIGNING_ALLOWED == "NO ]]; then
+  /usr/bin/codesign -s $CODE_SIGN_IDENTITY -f --deep Debug-iphoneos/Scenarios.app
+  /usr/bin/codesign -s $CODE_SIGN_IDENTITY -f --deep Debug-iphoneos/ScenariosUITests-Runner.app
+fi
+
 zip -r scenarios.zip Debug-iphoneos Scenarios*.xctestrun
 
 gcloud firebase test ios run --test ./scenarios.zip \

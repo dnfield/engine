@@ -7,6 +7,8 @@ package io.flutter.embedding.engine;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.ColorSpace;
+import android.graphics.ImageDecoder;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.os.Looper;
@@ -28,6 +30,7 @@ import io.flutter.plugin.localization.LocalizationPlugin;
 import io.flutter.plugin.platform.PlatformViewsController;
 import io.flutter.view.AccessibilityBridge;
 import io.flutter.view.FlutterCallbackInformation;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -282,6 +285,35 @@ public class FlutterJNI {
   public void removeIsDisplayingFlutterUiListener(@NonNull FlutterUiDisplayListener listener) {
     ensureRunningOnMainThread();
     flutterUiDisplayListeners.remove(listener);
+  }
+
+  /**
+   * Called by native as a fallback method of image decoding. There are other ways to decode images
+   * on lower API levels, they involve copying the native data _and_ do not support any additional
+   * formats, whereas ImageDecoder supports HEIF images. Unlike most other methods called from
+   * native, this method is expected to be called on a worker thread, since it only uses thread safe
+   * methods and may take multiple frames to complete.
+   */
+  @SuppressWarnings("unused")
+  @VisibleForTesting
+  @Nullable
+  public Bitmap decodeImage(@NonNull ByteBuffer buffer, int targetWidth, int targetHeight) {
+    if (Build.VERSION.SDK_INT >= 28) {
+      ImageDecoder.Source source = ImageDecoder.createSource(buffer);
+      try {
+        return ImageDecoder.decodeBitmap(
+            source,
+            (decoder, info, src) -> {
+              // i.e. ARGB_8888
+              decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.SRGB));
+              decoder.setTargetSize(targetWidth, targetHeight);
+            });
+      } catch (IOException e) {
+        Log.w(TAG, "ImageDecoder failed to decode an image", e);
+        return null;
+      }
+    }
+    return null;
   }
 
   // Called by native to notify first Flutter frame rendered.

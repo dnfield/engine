@@ -39,6 +39,8 @@ shared_library("flutter_shell_native") {
     "apk_asset_provider.h",
     "flutter_main.cc",
     "flutter_main.h",
+    "image_decoder_android.cc",
+    "image_decoder_android.h",
     "library_loader.cc",
     "platform_message_response_android.cc",
     "platform_message_response_android.h",
@@ -87,6 +89,7 @@ shared_library("flutter_shell_native") {
 
   libs = [
     "android",
+    "jnigraphics",
     "EGL",
     "GLESv2",
   ]

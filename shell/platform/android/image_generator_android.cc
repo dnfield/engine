@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "flutter/shell/platform/android/image_decoder_android.h"
+#include "flutter/shell/platform/android/image_generator_android.h"
 
 #include <android/bitmap.h>
-#include <dlfcn.h>
 
 #include "flutter/fml/logging.h"
 #include "flutter/fml/platform/android/jni_util.h"
@@ -31,11 +30,10 @@ class ImageGeneratorAndroid : public SkImageGenerator {
   const sk_sp<SkData> data_;
   const SkEncodedOrigin origin_;
 };
-}  // namespace
 
 static fml::jni::ScopedJavaGlobalRef<jclass>* g_flutter_jni_class = nullptr;
 static jmethodID g_decode_image_method = nullptr;
-static jmethodID g_bitmap_recycle_method = nullptr;
+}  // namespace
 
 bool ImageDecoderAndroid::Register(JNIEnv* env) {
   g_flutter_jni_class = new fml::jni::ScopedJavaGlobalRef<jclass>(
@@ -45,49 +43,36 @@ bool ImageDecoderAndroid::Register(JNIEnv* env) {
     return false;
   }
 
-  g_decode_image_method =
-      env->GetMethodID(g_flutter_jni_class->obj(), "decodeImage",
-                       "(java/nio/ByteBuffer;II)Landroid/graphics/Bitmap;");
+  g_decode_image_method = env->GetStaticMethodID(
+      g_flutter_jni_class->obj(), "decodeImage",
+      "(java/nio/ByteBuffer;II)Landroid/graphics/Bitmap;");
 
   if (g_decode_image_method == nullptr) {
     FML_LOG(ERROR) << "Could not locate decodeImage method";
     return false;
   }
 
-  fml::jni::ScopedJavaLocalRef<jclass> bitmap_class(
-      env, env->FindClass("android/graphics/Bitmap"));
-  if (bitmap_class.is_null()) {
-    FML_LOG(ERROR) << "Failed to find android.graphics.Bitmap Class.";
-    return false;
-  }
-
-  g_bitmap_recycle_method =
-      env->GetMethodID(bitmap_class.obj(), "recycle", "()V");
-  if (g_bitmap_recycle_method == nullptr) {
-    FML_LOG(ERROR) << "Failed to locate android.graphics.Bitmap.recycle()";
-    return false;
-  }
   return true;
 }
 
 sk_sp<SkData> ImageDecoderAndroid::DecodeImage(sk_sp<SkData> data,
                                                int target_width,
                                                int target_height) {
-  JNIEnv* env = fml::jni::AttachCurrentThread();
-
-  auto java_object = java_object_.get(env);
-  if (java_object.is_null()) {
+  if (!g_flutter_jni_class || !g_decode_image_method) {
     return nullptr;
   }
+
+  concurrent_task_runner_->PostTask() JNIEnv* env =
+      fml::jni::AttachCurrentThread();
 
   fml::jni::ScopedJavaLocalRef<jobject> direct_buffer(
       env,
       env->NewDirectByteBuffer(const_cast<void*>(data->data()), data->size()));
   fml::jni::ScopedJavaLocalRef<jobject> bitmap(
-      env,
-      env->CallObjectMethod(java_object.obj(), g_decode_image_method,
-                            direct_buffer.obj(), target_width, target_height));
-  FML_CHECK(CheckException(env));
+      env, env->CallStaticObjectMethod(
+               g_flutter_jni_class->obj(), g_decode_image_method,
+               direct_buffer.obj(), target_width, target_height));
+  FML_CHECK(fml::jni::CheckException(env));
 
   AndroidBitmapInfo info;
   int status;
@@ -105,8 +90,6 @@ sk_sp<SkData> ImageDecoderAndroid::DecodeImage(sk_sp<SkData> data,
   sk_sp<SkData> pixel_data = SkData::MakeWithCopy(
       pixel_lock, info.width * info.height * sizeof(uint32_t));
   AndroidBitmap_unlockPixels(env, bitmap.obj());
-
-  env->CallVoidMethod(bitmap.obj(), g_bitmap_recycle_method);
 
   return pixel_data;
 }
@@ -153,45 +136,5 @@ bool ImageGeneratorAndroid::onGetPixels(const SkImageInfo& info,
   // return SkPixmapPriv::Orient(dst, fOrigin, decode);
   return true;
 }
-
-// struct AImageDecoder;
-
-// typedef int (*AImageDecoder_createFromBuffer)(const void* buffer,
-//                                               size_t length,
-//                                               AImageDecoder** outDecoder);
-
-// typedef void (*AImageDecoder_delete)(AImageDecoder* decoder);
-
-// std::unique_ptr<SkImageGeneartor>
-// AndroidImageDecoder::CreateSkImageGenerator(
-//     SkData* data) {
-//   void* handle_ = dlopen("libjnigraphics.so", RTLD_NOW | RTLD_NODELETE);
-//   if (!handle_) {
-//     FML_LOG(ERROR) << "Failed to open libjnigraphics";
-//     return nullptr;
-//   }
-
-//   auto create = (AImageDecoder_createFromBuffer)dlsym(
-//       handle_, "AImageDecoder_createFromBuffer");
-//   if (!create) {
-//     FML_LOG(ERROR) << "Failed to dlsym create function";
-//     return nullptr;
-//   }
-
-//   auto destroy = (AImageDecoder_delete)dlsym(handle_,
-//   "AImageDecoder_delete"); if (!destroy) {
-//     FML_LOG(ERROR) << "Failed to dlsym delete function";
-//     return nullptr;
-//   }
-
-//   AImageDecoder* decoder;
-//   int result = create(data->data(), data->size(), &decoder);
-//   if (result != 0) {
-//     ERRORF(r, "Unexpected result %i");
-//     return;
-//   }
-
-//   destroy(decoder);
-// }
 
 }  // namespace flutter

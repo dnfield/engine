@@ -19,6 +19,8 @@ void InitJavaVM(JavaVM* vm);
 
 JNIEnv* AttachCurrentThread();
 
+bool CheckException(JNIEnv* env);
+
 void DetachFromVM();
 
 std::string JavaStringToString(JNIEnv* env, jstring string);

@@ -4,7 +4,7 @@
 
 #include "flutter/fml/platform/android/jni_util.h"
 #include "flutter/shell/platform/android/flutter_main.h"
-#include "flutter/shell/platform/android/image_decoder_android.h"
+#include "flutter/shell/platform/android/image_generator_android.h"
 #include "flutter/shell/platform/android/platform_view_android.h"
 #include "flutter/shell/platform/android/vsync_waiter_android.h"
 

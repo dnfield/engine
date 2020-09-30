@@ -23,6 +23,10 @@
 #include "third_party/skia/include/ports/SkImageGeneratorWIC.h"
 #define PLATFORM_IMAGE_GENERATOR(data) \
   SkImageGeneratorWIC::MakeFromEncodedWIC(data)
+#elif OS_ANDROID
+#include "flutter/shell/platform/android/image_generator_android.h"
+#define PLATFORM_IMAGE_GENERATOR(data) \
+  ImageGeneratorAndroid::MakeFromEncodedAndroid(data)
 #else
 #define PLATFORM_IMAGE_GENERATOR(data) \
   std::unique_ptr<SkImageGenerator>(nullptr)

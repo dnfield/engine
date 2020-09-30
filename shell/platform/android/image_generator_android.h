@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <jni.h>
+#include <optional>
 
 #include "flutter/fml/macros.h"
 #include "third_party/skia/include/core/SkImageGenerator.h"
@@ -12,9 +13,8 @@ namespace flutter {
 
 class ImageGeneratorAndroid : public SkImageGenerator {
  public:
-  ImageGeneratorAndroid(const SkImageInfo& info,
-                        sk_sp<SkData> data,
-                        SkEncodedOrigin origin);
+  static std::unique_ptr<SkImageGenerator> MakeFromEncodedAndroid(
+      sk_sp<SkData> data);
 
  protected:
   sk_sp<SkData> onRefEncodedData() override;
@@ -25,13 +25,23 @@ class ImageGeneratorAndroid : public SkImageGenerator {
                    const Options&) override;
 
  private:
+  ImageGeneratorAndroid(const SkImageInfo& info,
+                        sk_sp<SkData> data,
+                        sk_sp<SkData> encoded_data);
   const sk_sp<SkData> data_;
-  const SkEncodedOrigin origin_;
+  const sk_sp<SkData> decoded_data_;
 };
 
 class ImageDecoderAndroid final {
  public:
+  ImageDecoderAndroid() {}
+
   static bool Register(JNIEnv* env);
+
+  struct Descriptor {
+    SkImageInfo info;
+    sk_sp<SkData> data;
+  };
 
   // Decodes an image using Android API.
   //
@@ -43,9 +53,9 @@ class ImageDecoderAndroid final {
   //    supported.
   //  - For invalid image data or image data that Android does not know how to
   //    decode.
-  sk_sp<SkData> DecodeImage(sk_sp<SkData> data,
-                            int target_width,
-                            int target_height);
+  std::optional<Descriptor> DecodeImage(sk_sp<SkData> data,
+                                        int target_width,
+                                        int target_height);
 
  private:
   FML_DISALLOW_COPY_AND_ASSIGN(ImageDecoderAndroid);

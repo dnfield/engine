@@ -127,6 +127,10 @@ source_set("ui") {
     "//third_party/skia",
   ]
 
+  if (is_android) {
+    deps += [ "//flutter/shell/platform/android:image_generator" ]
+  }
+
   if (!defined(defines)) {
     defines = []
   }

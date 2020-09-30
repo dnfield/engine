@@ -297,7 +297,7 @@ public class FlutterJNI {
   @SuppressWarnings("unused")
   @VisibleForTesting
   @Nullable
-  public Bitmap decodeImage(@NonNull ByteBuffer buffer, int targetWidth, int targetHeight) {
+  public static Bitmap decodeImage(@NonNull ByteBuffer buffer, int targetWidth, int targetHeight) {
     if (Build.VERSION.SDK_INT >= 28) {
       ImageDecoder.Source source = ImageDecoder.createSource(buffer);
       try {
@@ -306,7 +306,12 @@ public class FlutterJNI {
             (decoder, info, src) -> {
               // i.e. ARGB_8888
               decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.SRGB));
-              decoder.setTargetSize(targetWidth, targetHeight);
+              if (targetWidth > 0 && targetHeight > 0) {
+                decoder.setTargetSize(targetWidth, targetHeight);
+              }
+              // TODO(dnfield): We should be able to use HARDWARE buffers, but
+              // we'd need to dynamically
+              decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
             });
       } catch (IOException e) {
         Log.w(TAG, "ImageDecoder failed to decode an image", e);

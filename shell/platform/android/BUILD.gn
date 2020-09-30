@@ -16,6 +16,23 @@ shell_gpu_configuration("android_gpu_configuration") {
   enable_metal = false
 }
 
+source_set("image_generator") {
+  sources = [
+    "image_generator_android.cc",
+    "image_generator_android.h",
+  ]
+
+  deps = [
+    "//flutter/fml",
+    "//third_party/skia",
+  ]
+
+  libs = [
+    "android",
+    "jnigraphics",
+  ]
+}
+
 shared_library("flutter_shell_native") {
   visibility = [ ":*" ]
 
@@ -39,8 +56,6 @@ shared_library("flutter_shell_native") {
     "apk_asset_provider.h",
     "flutter_main.cc",
     "flutter_main.h",
-    "image_generator_android.cc",
-    "image_generator_android.h",
     "library_loader.cc",
     "platform_message_response_android.cc",
     "platform_message_response_android.h",
@@ -55,6 +70,7 @@ shared_library("flutter_shell_native") {
   deps = [
     ":android_gpu_configuration",
     ":icudtl_object",
+    ":image_generator",
     "//flutter/assets",
     "//flutter/common",
     "//flutter/flow",
@@ -89,7 +105,6 @@ shared_library("flutter_shell_native") {
 
   libs = [
     "android",
-    "jnigraphics",
     "EGL",
     "GLESv2",
   ]

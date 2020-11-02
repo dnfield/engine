@@ -281,6 +281,11 @@ bool GPUSurfaceGL::PresentSurface(SkCanvas* canvas) {
     onscreen_surface_->getCanvas()->flush();
   }
 
+  {
+    TRACE_EVENT0("flutter", "GrDirectContext::flushAndSubmit");
+    context_->flushAndSubmit(true);
+  }
+
   if (!delegate_->GLContextPresent(fbo_id_)) {
     return false;
   }

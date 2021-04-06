@@ -23,6 +23,7 @@
 #include "flutter/fml/time/time_point.h"
 #include "flutter/lib/ui/snapshot_delegate.h"
 #include "flutter/shell/common/pipeline.h"
+#include "flutter/shell/common/shell_io_manager.h"
 
 namespace flutter {
 
@@ -89,6 +90,15 @@ class Rasterizer final : public SnapshotDelegate {
     /// is critical that GPU operations are not processed.
     virtual std::shared_ptr<fml::SyncSwitch> GetIsGpuDisabledSyncSwitch()
         const = 0;
+
+    //----------------------------------------------------------------------------
+    /// @brief      The IO Manager may only be accessed on the IO task runner.
+    ///
+    /// @return     A weak pointer to the IO manager.
+    ///
+    virtual fml::WeakPtr<ShellIOManager> GetIOManager() = 0;
+
+    virtual void MakeResourceContextCurrent() = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -473,6 +483,8 @@ class Rasterizer final : public SnapshotDelegate {
       flutter::CompositorContext& compositor_context,
       GrDirectContext* surface_context,
       bool compressed);
+
+  sk_sp<SkSurface> GetSnapshotSurface();
 
   sk_sp<SkImage> DoMakeRasterSnapshot(
       SkISize size,

@@ -102,6 +102,8 @@ sk_sp<GrDirectContext> PlatformView::CreateResourceContext() const {
 
 void PlatformView::ReleaseResourceContext() const {}
 
+void PlatformView::MakeResourceContextCurrent() {}
+
 PointerDataDispatcherMaker PlatformView::GetDispatcherMaker() {
   return [](DefaultPointerDataDispatcher::Delegate& delegate) {
     return std::make_unique<DefaultPointerDataDispatcher>(delegate);

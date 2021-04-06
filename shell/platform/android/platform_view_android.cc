@@ -356,6 +356,13 @@ void PlatformViewAndroid::ReleaseResourceContext() const {
 }
 
 // |PlatformView|
+void PlatformViewAndroid::MakeResourceContextCurrent() {
+  if (android_surface_) {
+    android_surface_->ResourceContextMakeCurrent();
+  }
+}
+
+// |PlatformView|
 std::unique_ptr<std::vector<std::string>>
 PlatformViewAndroid::ComputePlatformResolvedLocales(
     const std::vector<std::string>& supported_locale_data) {

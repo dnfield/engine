@@ -245,7 +245,9 @@ class Shell final : public PlatformView::Delegate,
   ///
   /// @return     A weak pointer to the IO manager.
   ///
-  fml::WeakPtr<ShellIOManager> GetIOManager();
+  fml::WeakPtr<ShellIOManager> GetIOManager() override;
+
+  void MakeResourceContextCurrent() override;
 
   // Embedders should call this under low memory conditions to free up
   // internal caches used.

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "flutter/common/graphics/persistent_cache.h"
+#include "flutter/fml/task_runner.h"
 #include "flutter/fml/time/time_delta.h"
 #include "flutter/fml/time/time_point.h"
 #include "flutter/shell/common/serialization_callbacks.h"
@@ -250,28 +251,32 @@ sk_sp<SkImage> Rasterizer::DoMakeRasterSnapshot(
     SkISize size,
     std::function<void(SkCanvas*)> draw_callback) {
   TRACE_EVENT0("flutter", __FUNCTION__);
-  sk_sp<SkImage> result;
   SkImageInfo image_info = SkImageInfo::MakeN32Premul(
       size.width(), size.height(), SkColorSpace::MakeSRGB());
-  if (surface_ == nullptr || surface_->GetContext() == nullptr) {
-    // Raster surface is fine if there is no on screen surface. This might
-    // happen in case of software rendering.
-    sk_sp<SkSurface> surface = SkSurface::MakeRaster(image_info);
-    result = DrawSnapshot(surface, draw_callback);
-  } else {
-    delegate_.GetIsGpuDisabledSyncSwitch()->Execute(
-        fml::SyncSwitch::Handlers()
-            .SetIfTrue([&] {
-              sk_sp<SkSurface> surface = SkSurface::MakeRaster(image_info);
-              result = DrawSnapshot(surface, draw_callback);
-            })
-            .SetIfFalse([&] {
+  // if (surface_ == nullptr || surface_->GetContext() == nullptr) {
+  //   FML_DLOG(ERROR) << "HEREEEE";
+  //   // Raster surface is fine if there is no on screen surface. This might
+  //   // happen in case of software rendering.
+  //   sk_sp<SkSurface> surface = SkSurface::MakeRaster(image_info);
+  //   result = DrawSnapshot(surface, draw_callback);
+  // } else {
+  sk_sp<SkImage> result;
+  sk_sp<SkSurface> surface;
+  delegate_.GetIsGpuDisabledSyncSwitch()->Execute(
+      fml::SyncSwitch::Handlers()
+          .SetIfTrue([&] {
+            surface = SkSurface::MakeRaster(image_info);
+            result = DrawSnapshot(surface, draw_callback);
+          })
+          .SetIfFalse([&] {
+            if (surface_) {
               auto context_switch = surface_->MakeRenderContextCurrent();
               if (!context_switch->GetResult()) {
                 return;
               }
 
-              GrRecordingContext* context = surface_->GetContext();
+              GrDirectContext* context = surface_->GetContext();
+
               auto max_size = context->maxRenderTargetSize();
               double scale_factor = std::min(
                   1.0, static_cast<double>(max_size) /
@@ -289,15 +294,59 @@ sk_sp<SkImage> Rasterizer::DoMakeRasterSnapshot(
 
               // When there is an on screen surface, we need a render target
               // SkSurface because we want to access texture backed images.
-              sk_sp<SkSurface> surface =
+              surface =
                   SkSurface::MakeRenderTarget(context,          // context
                                               SkBudgeted::kNo,  // budgeted
                                               image_info        // image info
                   );
               surface->getCanvas()->scale(scale_factor, scale_factor);
               result = DrawSnapshot(surface, draw_callback);
-            }));
-  }
+            } else {
+              fml::AutoResetWaitableEvent latch;
+              fml::TaskRunner::RunNowOrPostTask(
+                  delegate_.GetTaskRunners().GetIOTaskRunner(),
+                  [&, io_manager = delegate_.GetIOManager()]() {
+                    if (io_manager) {
+                      delegate_.MakeResourceContextCurrent();
+                      fml::WeakPtr<GrDirectContext> weak_context =
+                          io_manager->GetResourceContext();
+                      if (weak_context) {
+                        GrDirectContext* context = weak_context.get();
+                        auto max_size = context->maxRenderTargetSize();
+                        double scale_factor = std::min(
+                            1.0,
+                            static_cast<double>(max_size) /
+                                static_cast<double>(std::max(
+                                    image_info.width(), image_info.height())));
+
+                        // Scale down the render target size to the max
+                        // supported by the GPU if necessary. Exceeding the max
+                        // would otherwise cause a null result.
+                        if (scale_factor < 1.0) {
+                          image_info = image_info.makeWH(
+                              static_cast<double>(image_info.width()) *
+                                  scale_factor,
+                              static_cast<double>(image_info.height()) *
+                                  scale_factor);
+                        }
+
+                        // When there is an on screen surface, we need a render
+                        // target SkSurface because we want to access texture
+                        // backed images.
+                        surface = SkSurface::MakeRenderTarget(
+                            context,          // context
+                            SkBudgeted::kNo,  // budgeted
+                            image_info        // image info
+                        );
+                        surface->getCanvas()->scale(scale_factor, scale_factor);
+                        result = DrawSnapshot(surface, draw_callback);
+                      }
+                    }
+                    latch.Signal();
+                  });
+              latch.Wait();
+            }
+          }));
 
   return result;
 }

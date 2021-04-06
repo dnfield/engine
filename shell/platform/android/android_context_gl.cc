@@ -194,7 +194,7 @@ AndroidContextGL::~AndroidContextGL() {
         << "Could not tear down the EGL context. Possible resource leak.";
     LogLastEGLError();
   }
-
+FML_DLOG(ERROR) << "Tearing down resource context";
   if (!TeardownContext(environment_->Display(), resource_context_)) {
     FML_LOG(ERROR) << "Could not tear down the EGL resource context. Possible "
                       "resource leak.";

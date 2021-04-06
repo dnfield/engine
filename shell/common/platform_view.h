@@ -531,6 +531,8 @@ class PlatformView {
   ///
   virtual void ReleaseResourceContext() const;
 
+  virtual void MakeResourceContextCurrent();
+
   //--------------------------------------------------------------------------
   /// @brief      Returns a platform-specific PointerDataDispatcherMaker so the
   ///             `Engine` can construct the PointerDataPacketDispatcher based

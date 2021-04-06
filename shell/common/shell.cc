@@ -704,6 +704,16 @@ fml::WeakPtr<ShellIOManager> Shell::GetIOManager() {
   return io_manager_->GetWeakPtr();
 }
 
+void Shell::MakeResourceContextCurrent() {
+  FML_DCHECK(is_setup_);
+  fml::TaskRunner::RunNowOrPostTask(task_runners_.GetIOTaskRunner(),
+                                    [&]() {
+                                      if (platform_view_) {
+                                        platform_view_->MakeResourceContextCurrent();
+                                      }
+                                    });
+}
+
 DartVM* Shell::GetDartVM() {
   return &vm_;
 }

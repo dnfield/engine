@@ -87,11 +87,13 @@ bool AndroidSurfaceGL::OnScreenSurfaceResize(const SkISize& size) {
 
 bool AndroidSurfaceGL::ResourceContextMakeCurrent() {
   FML_DCHECK(IsValid());
+  FML_DLOG(ERROR) << "Making resource context current!";
   return offscreen_surface_->MakeCurrent();
 }
 
 bool AndroidSurfaceGL::ResourceContextClearCurrent() {
   FML_DCHECK(IsValid());
+  FML_DLOG(ERROR) << "Clearing resource context current";
   return GLContextPtr()->ClearCurrent();
 }
 
